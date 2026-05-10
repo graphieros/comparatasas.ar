@@ -21,6 +21,7 @@ const GROUP_ORDER = [
   { id: 'rf' as const, name: 'Renta fija' },
   { id: 'rm' as const, name: 'Renta mixta' },
   { id: 'rv' as const, name: 'Renta variable' },
+  { id: 'rt' as const, name: 'Retorno total' },
   { id: 'ot' as const, name: 'Otros' },
 ]
 
@@ -30,6 +31,7 @@ function fundCategory(f: ProcessedFund): (typeof GROUP_ORDER)[number]['id'] {
   if (t === 'rentaFija' || t === 'rentaFijaUsd') return 'rf'
   if (t === 'rentaMixta') return 'rm'
   if (t === 'rentaVariable') return 'rv'
+  if (t === 'retornoTotal') return 'rt'
   return 'ot'
 }
 
@@ -78,7 +80,7 @@ const horizontalBarComponent = shallowRef<Component | null>(null)
 const logoClipUid = `pat-bar-${useId().replace(/[^a-zA-Z0-9_-]/g, '-')}`
 
 onMounted(async () => {
-  const { VueUiHorizontalBar } = await import('vue-data-ui')
+  const { VueUiHorizontalBar } = await import('vue-data-ui/vue-ui-horizontal-bar')
   horizontalBarComponent.value = VueUiHorizontalBar
 })
 
@@ -93,6 +95,7 @@ const chartDataset = computed(() => {
     rf: [],
     rm: [],
     rv: [],
+    rt: [],
     ot: [],
   }
   for (const f of withP) {

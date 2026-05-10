@@ -13,9 +13,19 @@ export interface PlazoFijoTnaChartItem {
 
 interface Props {
   items: PlazoFijoTnaChartItem[]
+  /** Etiqueta del grupo raíz (serie) en el gráfico horizontal. */
+  parentGroupName?: string
+  /** Si es true, ordena por TNA de menor a mayor (por defecto: mayor a menor). */
+  sortTnaAscending?: boolean
+  /** Si es true, muestra la TNA sin redondear en la etiqueta de barra. */
+  preserveTnaPrecision?: boolean
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  parentGroupName: 'Plazo fijo 30 días · TNA clientes',
+  sortTnaAscending: false,
+  preserveTnaPrecision: false,
+})
 
 type BarChild = {
   name: string
@@ -31,6 +41,14 @@ function escapeTooltipHtml(s: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
+}
+
+function formatTnaPreservingPrecision(value: number | string): string {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return '0'
+
+  // Evita ceros de más y mantiene los decimales relevantes.
+  return n.toFixed(6).replace(/\.?0+$/, '')
 }
 
 /** Mismas constantes que TNAGroupedTnaChart (VueUiHorizontalBar + slot #svg). */
@@ -53,14 +71,14 @@ const horizontalBarComponent = shallowRef<Component | null>(null)
 const logoClipUid = `pf-tna-bar-${useId().replace(/[^a-zA-Z0-9_-]/g, '-')}`
 
 onMounted(async () => {
-  const { VueUiHorizontalBar } = await import('vue-data-ui')
+  const { VueUiHorizontalBar } = await import('vue-data-ui/vue-ui-horizontal-bar')
   horizontalBarComponent.value = VueUiHorizontalBar
 })
 
 const chartDataset = computed(() => {
   const sorted = [...props.items]
     .filter((i) => i.tna > 0)
-    .sort((a, b) => b.tna - a.tna)
+    .sort((a, b) => (props.sortTnaAscending ? a.tna - b.tna : b.tna - a.tna))
   if (sorted.length === 0) return []
 
   const children: BarChild[] = sorted.map((item, index) => ({
@@ -75,7 +93,7 @@ const chartDataset = computed(() => {
 
   return [
     {
-      name: 'Plazo fijo 30 días · TNA clientes',
+      name: props.parentGroupName,
       value,
       children,
     },
@@ -152,7 +170,9 @@ const chartConfig = computed<any>(() => ({
               roundingValue: 0,
               prefix: '',
               suffix: '%',
-              formatter: null,
+              formatter: props.preserveTnaPrecision
+                ? ({ value }: { value: number | string }) => formatTnaPreservingPrecision(value)
+                : null,
             },
             percentage: {
               show: false,

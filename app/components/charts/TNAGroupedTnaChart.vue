@@ -33,6 +33,7 @@ type BarChild = {
   logo?: string
   /** Condiciones / límite (cuentas) o tipo FCI (fondos), columna derecha del SVG. */
   rightLabel?: string
+  condicionesCorto?: string
 }
 
 function truncateBarCaption(s: string, max = 38): string {
@@ -63,6 +64,7 @@ function rightLabelForFund(f: ProcessedFund): string {
   if (t === 'rentaMixta') return truncateBarCaption('FCI · Renta  mixta')
   if (t === 'rentaFija' || t === 'rentaFijaUsd') return truncateBarCaption('FCI · Renta fija ')
   if (t === 'rentaVariable') return truncateBarCaption('FCI · Renta variable')
+  if (t === 'retornoTotal') return truncateBarCaption('FCI · Retorno total')
   if (f.typeLabel) return truncateBarCaption(`FCI · ${f.typeLabel}`)
   return truncateBarCaption('FCI · Rendimiento variable')
 }
@@ -94,7 +96,7 @@ const horizontalBarComponent = shallowRef<Component | null>(null)
 const logoClipUid = `tna-bar-${useId().replace(/[^a-zA-Z0-9_-]/g, '-')}`
 
 onMounted(async () => {
-  const { VueUiHorizontalBar } = await import('vue-data-ui')
+  const { VueUiHorizontalBar } = await import('vue-data-ui/vue-ui-horizontal-bar')
   horizontalBarComponent.value = VueUiHorizontalBar
 })
 
@@ -114,6 +116,7 @@ const fullChartDataset = computed(() => {
       color: CHART_COLORS[index % CHART_COLORS.length],
       logo: account.logo,
       rightLabel: rightLabelForAccount(account),
+      condicionesCorto: account.condicionesCorto?.trim(),
     }))
 
   const conCondicionesEspeciales: BarChild[] = [...props.specialAccounts]
@@ -124,10 +127,11 @@ const fullChartDataset = computed(() => {
       color: CHART_COLORS[(index + garantizado.length) % CHART_COLORS.length],
       logo: account.logo,
       rightLabel: rightLabelForAccount(account),
+      condicionesCorto: account.condicionesCorto?.trim(),
     }))
 
   const riesgoMuyBajo: BarChild[] = [...props.variableFunds]
-    .filter((fund) => !['rentaFija', 'rentaMixta'].includes(fund.type || ''))
+    .filter((fund) => !['rentaFija', 'rentaMixta', 'retornoTotal'].includes(fund.type || ''))
     .sort((a, b) => b.tna - a.tna)
     .map((fund, index) => ({
       name: fund.displayName || fund.fondo,
@@ -141,7 +145,7 @@ const fullChartDataset = computed(() => {
     }))
 
   const riesgoModerado: BarChild[] = [...props.variableFunds]
-    .filter((fund) => ['rentaFija', 'rentaMixta'].includes(fund.type || ''))
+    .filter((fund) => ['rentaFija', 'rentaMixta', 'retornoTotal'].includes(fund.type || ''))
     .sort((a, b) => b.tna - a.tna)
     .map((fund, index) => ({
       name: fund.displayName || fund.fondo,
@@ -270,14 +274,14 @@ const chartConfig = computed<any>(() => ({
             fontSize: BAR_DATA_FS,
             value: {
               show: true,
-              roundingValue: 0,
+              roundingValue: 2,
               prefix: '',
               suffix: '%',
               formatter: null,
             },
             percentage: {
               show: false,
-              roundingPercentage: 0,
+              roundingPercentage: 2,
             },
             offsetX: 0,
           },
@@ -335,24 +339,32 @@ const chartConfig = computed<any>(() => ({
           color: textColor.value,
         },
         position: 'top',
-        roundingValue: 0,
-        roundingPercentage: 0,
+        roundingValue: 2,
+        roundingPercentage: 2,
         prefix: '',
         suffix: '',
       },
       tooltip: {
         ...solidTooltip.value,
         show: true,
-        customFormat: ({ datapoint }: { datapoint: { name?: string; value?: number } }) => {
+        customFormat: ({
+          datapoint,
+        }: {
+          datapoint: { name?: string; value?: number; condicionesCorto?: string }
+        }) => {
           const name = datapoint?.name ?? ''
           const v = datapoint?.value
           const tna = v != null && Number.isFinite(Number(v)) ? `${Number(v).toFixed(2)}%` : '—'
-          return `<div style="font-family:inherit"><b>${escapeTooltipHtml(name)}</b><br/>TNA: ${tna}</div>`
+          const condicionesCorto = datapoint?.condicionesCorto?.trim()
+          const condiciones = condicionesCorto
+            ? `<div style="margin-top:6px;color:inherit;opacity:.8">Condiciones: ${escapeTooltipHtml(condicionesCorto)}</div>`
+            : ''
+          return `<div style="font-family:inherit;max-width:240px;white-space:normal;overflow-wrap:anywhere;line-height:1.35"><b>${escapeTooltipHtml(name)}</b><div>TNA: ${tna}</div>${condiciones}</div>`
         },
         showValue: false,
         showPercentage: false,
-        roundingValue: 0,
-        roundingPercentage: 0,
+        roundingValue: 2,
+        roundingPercentage: 2,
         prefix: '',
         suffix: '',
       },
@@ -429,8 +441,8 @@ const chartConfig = computed<any>(() => ({
       backgroundColor: '#FFFFFF',
       color: textColor.value,
       outline: 'none',
-      roundingValue: 0,
-      roundingPercentage: 0,
+      roundingValue: 2,
+      roundingPercentage: 2,
       prefix: '',
       suffix: '',
     },

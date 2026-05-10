@@ -1,9 +1,11 @@
 <script setup lang="ts">
 const { fetch: fetchFunds } = useFunds()
 const { fetch: fetchAccounts } = useAccounts()
+const { fetch: fetchFciVariablesUltimo } = useFciVariablesUltimo()
 const { fetchCriptos: fetchCrypto } = useCrypto()
 const { fetch: fetchPlazosFijos } = usePlazosFijos()
 const { fetch: fetchPlazosFijosUvaPagoPeriodico } = usePlazosFijosUvaPagoPeriodico()
+const { fetch: fetchPlazosFijosPrecancelables } = usePlazosFijosPrecancelables()
 const { fetch: fetchCriptopesos } = useCriptopesos()
 const { initialize } = useHotjar()
 
@@ -20,9 +22,11 @@ const useSponsorBanner = computed(() => {
 onMounted(() => {
   fetchAccounts()
   fetchFunds()
+  fetchFciVariablesUltimo()
   fetchCrypto()
   fetchPlazosFijos()
   fetchPlazosFijosUvaPagoPeriodico()
+  fetchPlazosFijosPrecancelables()
   fetchCriptopesos()
   initialize()
 })
@@ -34,6 +38,7 @@ const isWideLayout = computed(() => {
     'fondos',
     'cuentas-billeteras-graficos',
     'lecaps',
+    'bonos-cer',
   ].includes(route.name as string)
 })
 

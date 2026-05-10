@@ -29,7 +29,8 @@ const { data: ogItems } = await useAsyncData('og-fondos', async () => {
   })
   const riesgoMuyBajo = resolved.filter(
     (f) =>
-      (f.type ?? '') === 'mercadoDinero' || !['rentaFija', 'rentaMixta'].includes(f.type ?? ''),
+      (f.type ?? '') === 'mercadoDinero' ||
+      !['rentaFija', 'rentaMixta', 'retornoTotal'].includes(f.type ?? ''),
   )
   return top3Funds(
     riesgoMuyBajo.map((f) => ({
@@ -106,6 +107,16 @@ function daysBetween(a: string, b: string) {
   const d1 = new Date(a)
   const d2 = new Date(b)
   return Math.abs(Math.round((+d1 - +d2) / (1000 * 60 * 60 * 24)))
+}
+
+function formatDateArUtc(dateInput: string) {
+  const date = new Date(`${dateInput}T00:00:00.000Z`)
+  return new Intl.DateTimeFormat('es-AR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(date)
 }
 
 // Función para calcular rendimiento efectivo (sin anualizar)
@@ -368,7 +379,7 @@ const filteredFunds = computed(() => {
 
   // Filtro por búsqueda
   if (debouncedSearchQuery.value) {
-    const query = debouncedSearchQuery.value.toLowerCase()
+    const query = String(debouncedSearchQuery.value).toLowerCase()
     funds = funds.filter((fund) => fund.fondo.toLowerCase().includes(query))
   }
 
@@ -452,12 +463,7 @@ const columns: TableColumn<FundWithPrevious>[] = [
     cell: ({ row }) => {
       const fecha = row.getValue('fecha') as string
       if (!fecha) return h('span', { class: 'text-muted' }, '-')
-      const date = new Date(fecha)
-      const formatted = date.toLocaleDateString('es-AR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      })
+      const formatted = formatDateArUtc(fecha)
       return h('div', { class: 'text-sm' }, formatted)
     },
   },
@@ -467,12 +473,7 @@ const columns: TableColumn<FundWithPrevious>[] = [
     cell: ({ row }) => {
       const fechaAnterior = row.original.fechaAnterior
       if (!fechaAnterior) return h('span', { class: 'text-muted' }, '-')
-      const date = new Date(fechaAnterior)
-      const formatted = date.toLocaleDateString('es-AR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      })
+      const formatted = formatDateArUtc(fechaAnterior)
       return h('div', { class: 'text-sm text-muted' }, formatted)
     },
   },

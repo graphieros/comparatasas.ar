@@ -17,6 +17,7 @@ interface Funds {
   mercadoDinero: ProcessedFund[]
   rentaMixta: ProcessedFund[]
   rentaVariable: ProcessedFund[]
+  retornoTotal: ProcessedFund[]
 }
 
 const data: Ref<Funds> = ref({
@@ -24,6 +25,7 @@ const data: Ref<Funds> = ref({
   mercadoDinero: [],
   rentaMixta: [],
   rentaVariable: [],
+  retornoTotal: [],
 })
 
 const allFundsCache: Ref<ProcessedFund[]> = ref([])
@@ -99,12 +101,14 @@ async function getLatestAndPreviousFundData() {
   const mercadoDineroResponses = await getMercadoDinero()
   const rentaMixtaResponses = await getRentaMixta()
   const rentaVariableResponses = await getRentaVariable()
+  const retornoTotalResponses = await getRetornoTotal()
 
   allFundsCache.value = [
     ...rentaFijaResponses,
     ...mercadoDineroResponses,
     ...rentaMixtaResponses,
     ...rentaVariableResponses,
+    ...retornoTotalResponses,
   ]
 
   return {
@@ -112,7 +116,93 @@ async function getLatestAndPreviousFundData() {
     mercadoDinero: mercadoDineroResponses,
     rentaMixta: rentaMixtaResponses,
     rentaVariable: rentaVariableResponses,
+    retornoTotal: retornoTotalResponses,
   }
+}
+
+async function getRetornoTotal() {
+  const { latest, previous } = await getLatestAndPreviousRetornoTotal()
+
+  const funds = getFundsMap(latest, previous)
+
+  return funds
+    .sort((a, b) => b.tna - a.tna)
+    .map((fund) => ({
+      ...fund,
+      type: fund.type ?? 'retornoTotal',
+      typeLabel: fund.typeLabel ?? 'Retorno total',
+    }))
+}
+
+async function getRetornoTotalPreviousData(targetDate: Date, retriesLeft = 7): Promise<FundRaw[]> {
+  if (retriesLeft <= 0) return []
+
+  const targetDateString = targetDate.toISOString().split('T')[0].replace(/-/g, '/')
+
+  try {
+    const response = await $fetch<FundRaw[]>(
+      `https://api.argentinadatos.com/v1/finanzas/fci/retornoTotal/${targetDateString}`,
+    )
+
+    if (!response || response.length === 0) {
+      throw new Error(`No data for date ${targetDateString}`)
+    }
+
+    return response
+  } catch {
+    return await getRetornoTotalPreviousData(
+      new Date(targetDate.setDate(targetDate.getDate() - 1)),
+      retriesLeft - 1,
+    )
+  }
+}
+
+async function getLatestAndPreviousRetornoTotal() {
+  const latest = await $fetch<FundRaw[]>(
+    'https://api.argentinadatos.com/v1/finanzas/fci/retornoTotal/ultimo',
+  )
+
+  const responses: Record<string, FundRaw[]> = {}
+
+  const previous: FundRaw[] = []
+
+  for (const fund of latest) {
+    if (!fund.fecha) continue
+
+    const today = new Date()
+    const daysDiff = daysBetween(fund.fecha, today.toISOString().split('T')[0])
+    if (daysDiff > 30) continue
+
+    const fundName = fund.fondo
+    const targetDate = new Date(fund.fecha)
+    targetDate.setDate(targetDate.getDate() - 30)
+    const targetDateString = targetDate.toISOString().split('T')[0].replace(/-/g, '/')
+
+    let fundPrevious = responses[targetDateString]
+    if (!fundPrevious) {
+      try {
+        fundPrevious = await getRetornoTotalPreviousData(targetDate)
+        responses[targetDateString] = fundPrevious
+      } catch (e) {
+        console.warn(`No data for date ${targetDateString}`, fund.fondo, e)
+        fundPrevious = []
+        responses[targetDateString] = fundPrevious
+      }
+    }
+
+    if (fundPrevious && fundPrevious.length > 0) {
+      // find the closest date before or equal to target date
+      const sortedPrevious = fundPrevious
+        .filter((f) => f.fondo === fundName && f.fecha && new Date(f.fecha) <= targetDate)
+        .sort((a, b) => new Date(b.fecha!).getTime() - new Date(a.fecha!).getTime())
+
+      if (sortedPrevious.length > 0) {
+        previous.push(sortedPrevious[0])
+      }
+    }
+  }
+
+  return { latest, previous }
 }
 
 async function getMercadoDinero() {
@@ -284,7 +374,8 @@ export function useFunds() {
       data.value.rentaFija.length > 0 ||
       data.value.mercadoDinero.length > 0 ||
       data.value.rentaMixta.length > 0 ||
-      data.value.rentaVariable.length > 0
+      data.value.rentaVariable.length > 0 ||
+      data.value.retornoTotal.length > 0
     ) {
       return data.value // Return cached data if available
     }

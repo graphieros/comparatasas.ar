@@ -18,13 +18,24 @@ function getPagePath(to: string): string {
   return i === -1 ? to : to.slice(0, i)
 }
 
+function normalizeNavigationAlias(path: string): string {
+  const trimmed = path.replace(/\/$/, '') || '/'
+  if (
+    trimmed === '/plazos-fijos/uva-pago-periodico' ||
+    trimmed === '/plazos-fijos/uva-precancelable'
+  ) {
+    return '/plazos-fijos'
+  }
+  return trimmed
+}
+
 export const useNavigationPages = () => {
   const route = useRoute()
 
   // Normaliza: sin barra final; '/' → '/cuentas-billeteras'
   const normalizeRoute = (routePath: string): string => {
-    const trimmed = routePath.replace(/\/$/, '') || '/'
-    return trimmed === '/' ? '/cuentas-billeteras' : trimmed
+    const aliased = normalizeNavigationAlias(routePath)
+    return aliased === '/' ? '/cuentas-billeteras' : aliased
   }
 
   const isPageActive = (page: NavigationPage): boolean => {
@@ -38,7 +49,7 @@ export const useNavigationPages = () => {
       id: 'ars',
       label: 'ARS',
       ariaLabel:
-        'ARS — comparadores en pesos: cuentas y billeteras, plazos fijos, PF UVA pago periódico, LECAPs y créditos hipotecarios UVA',
+        'ARS — comparadores en pesos: cuentas y billeteras, plazos fijos, PF UVA pago periódico, PF UVA precancelable, LECAPs, bonos CER y créditos hipotecarios UVA',
       icon: 'flag-ars',
       pages: [
         {
@@ -49,14 +60,8 @@ export const useNavigationPages = () => {
         },
         {
           to: '/plazos-fijos',
-          label: 'Plazo Fijo',
+          label: 'Plazos Fijos',
           icon: 'i-lucide-clock',
-          image: 'https://api.argentinadatos.com/static/comparatasas/icons/safe.png',
-        },
-        {
-          to: '/plazos-fijos/uva-pago-periodico',
-          label: 'PF UVA pago periódico',
-          icon: 'i-lucide-calendar-range',
           image: 'https://api.argentinadatos.com/static/comparatasas/icons/safe.png',
         },
         {
@@ -64,6 +69,12 @@ export const useNavigationPages = () => {
           label: 'LECAPs',
           icon: 'i-lucide-banknote',
           image: 'https://api.argentinadatos.com/static/comparatasas/icons/letras.png',
+        },
+        {
+          to: '/bonos-cer',
+          label: 'Bonos CER',
+          icon: 'i-lucide-trending-up',
+          image: 'https://api.argentinadatos.com/static/comparatasas/icons/safe.png',
         },
         {
           to: '/creditos-hipotecarios-uva',
